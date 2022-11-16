@@ -98,6 +98,8 @@ function _layoutBook(parsed, pages, builder, state) {
             _layoutBook(node.children, pages, builder, state);
             freshline(pages, builder, state);
             newline(pages, builder, state);
+        } else if (node.tag === 'hr') {
+            pagebreak(pages, builder, state);
         }
     }
 }
