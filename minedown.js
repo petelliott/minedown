@@ -21,15 +21,17 @@ function reparse(parsed, off, until) {
     }
 
     if (parsed[o].type.endsWith('_open')) {
-        const tag = parsed[o].type.replace('_open', '');
+        const type = parsed[o].type.replace('_open', '');
         return [{
-            tag: tag,
-            children: reparse(parsed, off, tag + '_close')
+            type: type,
+            tag: parsed[o].tag,
+            children: reparse(parsed, off, type + '_close')
         }].concat(reparse(parsed, off, until));
     }
 
     return [{
-        tag: parsed[o].type,
+        type: parsed[o].type,
+        tag: parsed[o].tag,
     }].concat(reparse(parsed, off, until));
 }
 
@@ -46,6 +48,12 @@ function pagebreak(pages, builder, state) {
     state.line = 0;
     pages.push(builder.join(''));
     builder.length = 0;
+}
+
+function freshpage(pages, builder, state) {
+    if (state.col !== 0 || state.line !== 0) {
+        pagebreak(pages, builder, state);
+    }
 }
 
 function insert_string(str, pages, builder, state) {
@@ -82,32 +90,74 @@ function freshline(pages, builder, state) {
     }
 }
 
-function _layoutBook(parsed, pages, builder, state) {
-    for (const node of parsed) {
-        if (typeof node === 'string') {
-            if (state.col != 0 && glyphWidth(' ') + state.col < page_width)
-                insert_string(' ', pages, builder, state);
-            insert_string(node, pages, builder, state);
-        } else if (node.tag === 'heading') {
-            freshline(pages, builder, state);
-            _layoutBook(node.children, pages, builder, state);
-            freshline(pages, builder, state);
-            insert_string("===================", pages, builder, state);
-            freshline(pages, builder, state);
-        } else if (node.tag === 'paragraph') {
-            _layoutBook(node.children, pages, builder, state);
-            freshline(pages, builder, state);
-            newline(pages, builder, state);
-        } else if (node.tag === 'hr') {
+function runBytecode(parsed, bc, config, pages, builder, state) {
+    for (const op of bc) {
+        if (op == 'pagebreak') {
             pagebreak(pages, builder, state);
+        } else if (op == 'freshpage') {
+            freshpage(pages, builder, state);
+        } else if (op == 'vcenter') {
+            if (state.line > 6) {
+                pagebreak(pages, builder, state);
+            }
+
+            for (; state.line < 6;) {
+                newline(pages, builder, state);
+            }
+        } else if (op == 'hcenter') {
+            const newstate = { ... state };
+            _layoutBook(parsed, config, [], [], newstate);
+            const pad = (page_width - (newstate.col - state.col))/(2 * glyphWidth(' '));
+            console.log(pad);
+            for (let i = 0; i < pad; ++i) {
+                console.log('a');
+                insert_string(' ', pages, builder, state);
+            }
+        } else if (op == 'capson') {
+            state.caps = true;
+        } else if (op == 'capsoff') {
+            state.caps = false;
+        } else if (op == 'underline') {
+            freshline(pages, builder, state);
+            insert_string('===================', pages, builder, state);
+            freshline(pages, builder, state);
+        } else if (op == 'freshline') {
+            freshline(pages, builder, state);
+        } else if (op == 'newline') {
+            newline(pages, builder, state);
+        } else if (op == 'emit') {
+            _layoutBook(parsed, config, pages, builder, state);
         }
     }
 }
 
-function layoutBook(parsed) {
+function _layoutBook(parsed, config, pages, builder, state) {
+    for (const node of parsed) {
+        if (typeof node === 'string') {
+            if (state.col != 0 && glyphWidth(' ') + state.col < page_width)
+                insert_string(' ', pages, builder, state);
+            const str = (state.caps)? node.toUpperCase() : node;
+            insert_string(str, pages, builder, state);
+        } else if (config[node.tag]) {
+            runBytecode(node.children, config[node.tag], config, pages, builder, state);
+        }
+    }
+}
+
+const default_config = {
+    h1: ['freshpage', 'vcenter', 'capson', 'hcenter', 'emit', 'capsoff', 'pagebreak'],
+    h2: ['freshpage', 'capson', 'hcenter', 'emit', 'capsoff', 'underline', 'freshline'],
+    h3: ['capson', 'emit', 'capsoff', 'underline'],
+    h4: ['emit', 'underline'],
+    h5: ['capson', 'emit', 'capsoff', 'freshline', 'newline'],
+    p:  ['emit', 'freshline', 'newline'],
+    hr: ['pagebreak']
+};
+
+function layoutBook(parsed, config) {
     const builder = [];
     const pages = [];
-    _layoutBook(parsed, pages, builder, { line: 0, col: 0 });
+    _layoutBook(parsed, { ...config, ...default_config }, pages, builder, { line: 0, col: 0, caps: false });
     if (builder.length > 0)
         pages.push(builder.join(''));
     return pages;
@@ -115,6 +165,6 @@ function layoutBook(parsed) {
 
 let md = window.markdownit();
 
-function minedown(text) {
-    return layoutBook(reparse(md.parse(text)));
+function minedown(text, config) {
+    return layoutBook(reparse(md.parse(text)), config);
 }

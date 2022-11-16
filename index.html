@@ -17,6 +17,7 @@
 
     .mcpre {
         all: unset;
+        white-space: pre;
     }
 
     .mcpage {
@@ -62,7 +63,7 @@
 
             const pagenum = document.createElement('div');
             pagenum.className = 'mcpagenum';
-            pagenum.innerText = `Page ${p + 1} of ${pages.length}`;
+            pagenum.textContent = `Page ${p + 1} of ${pages.length}`;
 
             const pre = document.createElement('pre');
             pre.innerText = pages[p];
