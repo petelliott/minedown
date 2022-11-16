@@ -15,14 +15,36 @@
         font-style: normal;
     }
 
-    .mcbook {
-        font-family: "Minecraft Regular";
+    .mcpre {
+        all: unset;
     }
+
+    .mcpage {
+        font-family: "Minecraft Regular";
+        background-image: url("book.png");
+        background-repeat: no-repeat;
+        background-size: 14.5em;
+        line-height: 0.9em;
+        height: 15em;
+        image-rendering: pixelated;
+        padding-top: 2.85em;
+        padding-left: 1.5em;
+        position: relative;
+        width: 13em;
+    }
+
+    .mcpagenum {
+        position: absolute;
+        top: 1.5em;
+        right: 1.7em;
+        user-select: none;
+    }
+
   </style>
 </head>
 <body>
   <textarea id="input" oninput="render()"></textarea>
-  <pre id="output" class="mcbook"></pre>
+  <div id="output"></div>
   <script src="glyph_sizes.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
   <script src="minedown.js"></script>
@@ -31,7 +53,26 @@
         const input = document.getElementById('input');
         const output = document.getElementById('output');
         localStorage.setItem('document', input.value);
-        output.innerText = minedown(input.value);
+        const pages = minedown(input.value);
+        for (let p = 0; p < pages.length; ++p) {
+            const div = document.createElement('div');
+            div.className = 'mcpage';
+
+            const pagenum = document.createElement('div');
+            pagenum.className = 'mcpagenum';
+            pagenum.innerText = `Page ${p + 1} of ${pages.length}`;
+
+            const pre = document.createElement('pre');
+            pre.innerText = pages[p];
+            pre.className = 'mcpre';
+
+            div.appendChild(pagenum);
+            div.appendChild(pre);
+
+            output.innerHTML = '';
+            output.appendChild(div);
+        }
+        console.log(pages);
     }
 
     const input = document.getElementById('input');

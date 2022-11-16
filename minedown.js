@@ -41,7 +41,14 @@ function glyphWidth(str) {
     return w;
 }
 
-function insert_string(str, builder, state) {
+function pagebreak(pages, builder, state) {
+    state.col = 0;
+    state.line = 0;
+    pages.push(builder.join(''));
+    builder.length = 0;
+}
+
+function insert_string(str, pages, builder, state) {
     const w = glyphWidth(str);
 
     if (state.col + w > page_width) {
@@ -51,57 +58,57 @@ function insert_string(str, builder, state) {
     }
 
     if (state.line >= page_height) {
-        state.line = 0;
-        builder.push('-----------------------------------------\n');
+        pagebreak(pages, builder, state);
     }
 
     builder.push(str);
     state.col += w;
 }
 
-function newline(builder, state) {
+function newline(pages, builder, state) {
     state.col = 0;
     state.line++;
 
     if (state.line >= page_height) {
-        state.line = 0;
-        builder.push('-----------------------------------------\n');
+        pagebreak(pages, builder, state);
     }
 
     builder.push('\n');
 }
 
-function freshline(builder, state) {
+function freshline(pages, builder, state) {
     if (state.col !== 0) {
-        newline(builder, state);
+        newline(pages, builder, state);
     }
 }
 
-
-function _layoutBook(parsed, builder, state) {
+function _layoutBook(parsed, pages, builder, state) {
     for (const node of parsed) {
         if (typeof node === 'string') {
             if (state.col != 0 && glyphWidth(' ') + state.col < page_width)
-                insert_string(' ', builder, state);
-            insert_string(node, builder, state);
+                insert_string(' ', pages, builder, state);
+            insert_string(node, pages, builder, state);
         } else if (node.tag === 'heading') {
-            freshline(builder, state);
-            _layoutBook(node.children, builder, state);
-            freshline(builder, state);
-            insert_string("===================", builder, state);
-            freshline(builder, state);
+            freshline(pages, builder, state);
+            _layoutBook(node.children, pages, builder, state);
+            freshline(pages, builder, state);
+            insert_string("===================", pages, builder, state);
+            freshline(pages, builder, state);
         } else if (node.tag === 'paragraph') {
-            _layoutBook(node.children, builder, state);
-            freshline(builder, state);
-            newline(builder, state);
+            _layoutBook(node.children, pages, builder, state);
+            freshline(pages, builder, state);
+            newline(pages, builder, state);
         }
     }
 }
 
 function layoutBook(parsed) {
     const builder = [];
-    _layoutBook(parsed, builder, { line: 0, col: 0 });
-    return builder.join('');
+    const pages = [];
+    _layoutBook(parsed, pages, builder, { line: 0, col: 0 });
+    if (builder.length > 0)
+        pages.push(builder.join(''));
+    return pages;
 }
 
 let md = window.markdownit();
