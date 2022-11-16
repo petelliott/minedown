@@ -14,8 +14,13 @@
     function render() {
         const input = document.getElementById('input');
         const output = document.getElementById('output');
+        localStorage.setItem('document', input.value);
         output.innerText = minedown(input.value);
     }
+
+    const input = document.getElementById('input');
+    input.value = localStorage.getItem('document');
+    render();
   </script>
 </body>
 </html>
