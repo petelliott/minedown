@@ -81,7 +81,7 @@ function freshline(builder, state) {
 function _layoutBook(parsed, builder, state) {
     for (const node of parsed) {
         if (typeof node === 'string') {
-            if (state.col != 0)
+            if (state.col != 0 && glyphWidth(' ') + state.col < page_width)
                 insert_string(' ', builder, state);
             insert_string(node, builder, state);
         } else if (node.tag === 'heading') {
